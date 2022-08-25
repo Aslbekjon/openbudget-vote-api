@@ -1,0 +1,173 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yo`llar uchun ovoz berish.</title>
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <script src="js/axios.min.js"></script>
+    <script src="js/jquery.min.js"></script>
+</head>
+<body>
+    <br>
+    <div class="container-fluid">
+        <div class="row">
+          <div class="col-md-4 col-sm-3 col-xs-1">
+
+          </div>
+          <div class="col-md-4 col-sm-6 col-xs-10">
+            <h2 class="text-center">Kaltaminor MFY, Sho'rguzar qishlog'i yo'lini asfalt qilishga ovoz berish</h2>
+            <div class="card">
+                <div class="card-body">
+                    <!-- <form> -->
+                        <div class="mb-3">
+                          <label for="phone" class="form-label">Telefon raqam</label>
+                          <div class="input-group mb-3">
+                            <span class="input-group-text" id="addon">+998</span>
+                            <input type="text" id="phone" class="form-control" placeholder="Raqam" autofocus aria-describedby="addon">
+                          </div>
+
+                        </div>
+                        <div class="mb-3 d-none" id="codeDiv">
+                          <label for="code" class="form-label">SMS tarzda kod yuborildi - (<span class="text-danger" id="time"></span>)</label>
+                          <input type="text" placeholder="Kodni kiriting" class="form-control" id="code">
+                        </div>
+                        <div id="message">
+
+                        </div>
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="button" id="sendBtn" class="btn btn-warning">Ovoz berish</button>
+
+                    </div>
+                    <div id="messageSuccess"></div>
+                      <!-- </form> -->
+                </div>
+              </div>
+          </div>
+          <div class="col-md-4 col-sm-3 col-xs-1">
+
+          </div>
+        </div>
+      </div>
+    <script>
+            let msg = $("#message");
+            let msgS = $("#messageSuccess");
+            let code = $("#code");
+            let codeDiv = $("#codeDiv");
+            let phone = $("#phone");
+            let sendBtn = $("#sendBtn");
+            let timeShow = $("#time");
+            let stat = 0;
+            let getToken = "";
+        $(document).ready(function(){
+
+            sendBtn.on('click',function(){
+                msg.html('');
+                msgS.html('');
+                if(phone.val().length == 9 && stat == 0){
+                        sendBtn.text("Kuting...");
+                        sendBtn.attr('disabled','disabled');
+                         axios.post('https://admin.openbudget.uz/api/v1/user/validate_phone/',
+                         {
+                            application: "161991",
+                            phone: "+998 ("+phone.val().substring(0, 2)+") "+phone.val().substring(2, 5)+'-'+phone.val().substring(5, 7)+'-'+phone.val().substring(7, 9)
+                         }
+                         )
+                    .then(function (response) {
+                        stat = 1;
+                     getToken = response.data.token;
+                     timeShow.html("03:00");
+                     timing();
+                     codeDiv.removeClass("d-none");
+                     code.focus();
+                     sendBtn.text("Kodni tasdiqlash");
+                     sendBtn.removeAttr('disabled');
+                    })
+                    .catch(function (error) {
+                        if(error.response.status == 400)
+                        {
+                            if(error.response.data.detail == "This number was used to vote")
+                            msg.html("<span class='text-center text-danger'>"+"Bu raqam ovoz berish uchun ishlatilgan"+"</span>");
+                            if(error.response.data.detail == "Phone Number already exists")
+                            msg.html("<span class='text-center text-danger'>"+"Telefon raqami ro'yhatdan o'tgan"+"</span>");
+
+                        }
+                        sendBtn.text("Ovoz berish");
+                        sendBtn.removeAttr('disabled');
+                    });
+                }
+                else if(phone.val().length == 9 && code.val().length != 0 && stat == 1){
+                    sendBtn.text("Kuting...");
+                    sendBtn.attr('disabled','disabled');
+
+                    axios.post('https://admin.openbudget.uz/api/v1/user/temp/vote/',
+                         {
+                            application: "161991",
+                            otp:code.val(),
+                            phone:"998"+phone.val(),
+                            token:getToken
+                         }
+                         )
+                    .then(function (response) {
+                        stat = 0;
+                    //  console.log(response);
+                     msgS.html("<span class='text-center text-success'>"+phone.val()+" raqam orqali muvaffaqiyatli ovoz berildi"+"</span>");
+                     codeDiv.addClass("d-none");
+
+                     sendBtn.text("Ovoz berish");
+                     sendBtn.removeAttr('disabled');
+                    })
+                    .catch(function (error) {
+                        if(error.response.status == 400)
+                        {
+                            msg.html("<span class='text-center text-danger'>"+error.response.data.detail+"</span>");
+
+                        }
+                        sendBtn.text("Ovoz berish");
+                        sendBtn.removeAttr('disabled');
+                    });
+                }
+                else if(phone.val().length != 9){
+                    msg.html("<span class='text-center text-danger'>"+"Telefon raqami -  9 raqam bo'lishi kerak"+"</span>");
+                }
+            });
+        });
+        function timing(){
+            let timer2 = "3:00";
+            let interval = setInterval(function() {
+
+
+            let timer = timer2.split(':');
+            let minutes = parseInt(timer[0], 10);
+            let seconds = parseInt(timer[1], 10);
+            --seconds;
+            minutes = (seconds < 0) ? --minutes : minutes;
+            if (minutes < 0) {
+                clearInterval(interval);
+                timeShow.html("00:00");
+                codeDiv.addClass('d-none');
+                sendBtn.text("Ovoz berish");
+                stat=0;
+                return;
+            }
+            seconds = (seconds < 0) ? 59 : seconds;
+            seconds = (seconds < 10) ? '0' + seconds : seconds;
+            minutes = (minutes < 10) ? '0' + minutes : minutes;
+            timeShow.html(minutes + ':' + seconds);
+            timer2 = minutes + ':' + seconds;
+            }, 1000);
+        }
+    //      axios.get('https://admin.openbudget.uz/api/v1/application/150713/')
+    // .then(function (response) {
+    //  console.log(response);
+    // })
+    // .catch(function (error) {
+    //     console.log(error);
+    // });
+
+    </script>
+
+</body>
+</html>
